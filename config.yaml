@@ -1,0 +1,45 @@
+project:
+  name: "SaniSight AI"
+  version: "1.0"
+  data_path: "data/processed/water_quality.csv"
+  geojson_path: "data/raw/regions.geojson"
+  model_dir: "models"
+
+features:
+  - Temperatur
+  - Total Dissolve Solid
+  - Kekeruhan
+  - pH
+  - Salinitas
+  - Oksigen terlarut (DO)
+  - Daya Hantar Listrik
+
+target: "risk_class"
+
+risk_labels:
+  0: "Baik"
+  1: "Cemar Ringan"
+  2: "Cemar Sedang"
+  3: "Cemar Berat"
+
+risk_colors:
+  0: "#10b981"
+  1: "#f59e0b"
+  2: "#ef4444"
+  3: "#7f1d1d"
+
+training:
+  test_size: 0.2
+  random_state: 42
+  logistic:
+    max_iter: 500
+  xgboost:
+    n_estimators: 250
+    max_depth: 4
+    learning_rate: 0.08
+    subsample: 0.9
+    colsample_bytree: 0.9
+    reg_lambda: 1.0
+  dbscan:
+    eps: 0.7
+    min_samples: 6
