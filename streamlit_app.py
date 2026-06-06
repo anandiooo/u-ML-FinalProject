@@ -5,7 +5,7 @@ import pandas as pd
 import streamlit as st
 
 st.set_page_config(
-    page_title="SaniSight AI",
+    page_title="SaniSight",
     layout="wide",
     initial_sidebar_state="expanded",
 )
@@ -251,7 +251,15 @@ else:
     df_view = df.copy()
 
 def page_home():
-    page_header("SaniSight AI", "Sistem Pendukung Keputusan Berbasis Tata Ruang")
+    page_header("Spatial-Based Health Risk Prediction System", "Sistem Pendukung Keputusan Berbasis Tata Ruang")
+    
+    st.markdown('<div class="section-heading">Problem Statement</div>', unsafe_allow_html=True)
+    st.markdown("""
+    <div style="font-size: 1.05rem; line-height: 1.6; color: var(--text-main); margin-bottom: 2rem;">
+        Merujuk pada target RPJMN 2025–2029 dan pilar Smart City, Perencanaan infrastruktur kesehatan dan tata kota, khususnya di kawasan aglomerasi padat penduduk seperti area Jakarta dan Bekasi, seringkali masih berjalan secara terpisah dan reaktif. Data kondisi lingkungan, seperti kualitas sanitasi, jarang dihubungkan secara langsung dengan data penyebaran penyakit dasar seperti ISPA atau diare. Akibatnya, tindakan penanganan biasanya baru diturunkan setelah lonjakan kasus penyakit terjadi di suatu kecamatan. Proyek ini mengusulkan sebuah Sistem Pendukung Keputusan (Decision Support System) berbasis data keruangan. Sistem ini dirancang untuk memprediksi tingkat risiko kesehatan di suatu wilayah secara proaktif.
+    </div>
+    """, unsafe_allow_html=True)
+    
     render_dashboard(config, df_view, metrics)
 
 
@@ -430,11 +438,11 @@ def page_train_eval():
                     log_cfg = train_cfg.get("logistic", {})
                     max_iter = st.slider("max_iter", 100, 1000, int(log_cfg.get("max_iter", 500)), 50)
 
-            with st.expander("Validation Settings", expanded=False):
+            with st.expander("Validation Settings", expanded=True):
                 test_size = st.slider("Test split", 0.10, 0.40, float(train_cfg.get("test_size", 0.2)), 0.05)
                 random_state = st.number_input("Random state", 0, 9999, int(train_cfg.get("random_state", 42)))
 
-            with st.expander("DBSCAN Clustering", expanded=False):
+            with st.expander("DBSCAN Clustering", expanded=True):
                 st.caption("Configure spatial clustering parameters.")
                 db_cfg = train_cfg.get("dbscan", {})
                 eps = st.slider("eps (neighborhood radius)", 0.1, 3.0, float(db_cfg.get("eps", 0.7)), 0.1)
@@ -570,7 +578,7 @@ def page_spatial_map():
 
     with col_map:
         if artifacts is None:
-            ibox("<strong>Model belum dilatih.</strong><br>Silakan latih model terlebih dahulu.", kind="warn")
+            st.markdown('<div class="warn-box"><strong>Model belum dilatih.</strong><br>Silakan latih model terlebih dahulu.</div>', unsafe_allow_html=True)
 
         # Build a custom map that includes the simulation point
         render_heatmap(config, df_view)
@@ -589,14 +597,8 @@ def page_spatial_map():
 
             html_content = f"""
             <div class="{kind_class}" style="margin-top: 1rem;">
-                <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 0.75rem;">
-                    <span style="font-size: 1.1rem; font-weight: 600; color: var(--text-main);">Hasil Simulasi Risiko & Analisis Dampak</span>
-                    <span style="background: {color}20; color: {color}; border: 1px solid {color}; border-radius: 20px; padding: 0.2rem 0.8rem; font-size: 0.85rem; font-weight: bold; text-transform: uppercase;">
-                        {pred_label}
-                    </span>
-                </div>
                 <div style="font-size: 0.95rem; color: var(--text-main);">
-                    Tingkat risiko kesehatan wilayah yang disimulasikan diprediksi berada pada kategori 
+                    Tingkat risiko kesehatan wilayah yang disimulasikan diprediksi berada pada kategori
                     <strong style="color: {color};">{pred_label}</strong> dengan tingkat keyakinan (confidence) sebesar <strong>{prob:.2%}</strong>.
                 </div>
             """
