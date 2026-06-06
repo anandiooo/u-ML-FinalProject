@@ -128,7 +128,7 @@ def render_dashboard(config, df, metrics=None):
         perf_text = "Sangat Baik" if macro_f1 > 0.8 else ("Baik" if macro_f1 > 0.6 else "Perlu Ditingkatkan")
         st.markdown(
             f"<div class='interp-box'><strong>Interpretasi Otomatis:</strong> Kinerja model secara keseluruhan berada di tingkat "
-            f"**{perf_text}** (Macro F1: {macro_f1:.2f}). Ini berarti sistem ini {'cukup andal' if macro_f1 > 0.6 else 'kurang dapat diandalkan'} "
+            f"<strong>{perf_text}</strong> (Macro F1: {macro_f1:.2f}). Ini berarti sistem ini {'cukup andal' if macro_f1 > 0.6 else 'kurang dapat diandalkan'} "
             f"untuk mengidentifikasi secara akurat wilayah mana saja yang paling rawan terhadap penyakit berbasis lingkungan.</div>",
             unsafe_allow_html=True
         )
@@ -162,7 +162,7 @@ def render_heatmap(config, df):
 
             st.markdown(
                 f"<div class='interp-box'><strong>Interpretasi Peta Otomatis:</strong> Secara keseluruhan wilayah didominasi oleh kategori "
-                f"**{dominant_str}** yang mencakup {pct:.1f}% dari area pada dataset saat ini. "
+                f"<strong>{dominant_str}</strong> yang mencakup {pct:.1f}% dari area pada dataset saat ini. "
                 f"Pola penyebaran ini dapat membantu dinas kesehatan memfokuskan alokasi anggaran dan SDM kesehatan.</div>",
                 unsafe_allow_html=True
             )

@@ -252,14 +252,14 @@ else:
 
 def page_home():
     page_header("Spatial-Based Health Risk Prediction System", "Sistem Pendukung Keputusan Berbasis Tata Ruang")
-    
+
     st.markdown('<div class="section-heading">Problem Statement</div>', unsafe_allow_html=True)
     st.markdown("""
     <div style="font-size: 1.05rem; line-height: 1.6; color: var(--text-main); margin-bottom: 2rem;">
         Merujuk pada target RPJMN 2025–2029 dan pilar Smart City, Perencanaan infrastruktur kesehatan dan tata kota, khususnya di kawasan aglomerasi padat penduduk seperti area Jakarta dan Bekasi, seringkali masih berjalan secara terpisah dan reaktif. Data kondisi lingkungan, seperti kualitas sanitasi, jarang dihubungkan secara langsung dengan data penyebaran penyakit dasar seperti ISPA atau diare. Akibatnya, tindakan penanganan biasanya baru diturunkan setelah lonjakan kasus penyakit terjadi di suatu kecamatan. Proyek ini mengusulkan sebuah Sistem Pendukung Keputusan (Decision Support System) berbasis data keruangan. Sistem ini dirancang untuk memprediksi tingkat risiko kesehatan di suatu wilayah secara proaktif.
     </div>
     """, unsafe_allow_html=True)
-    
+
     render_dashboard(config, df_view, metrics)
 
 
@@ -585,41 +585,7 @@ def page_spatial_map():
 
         # Combined Simulation Results & Interpretation Box
         if sim_data is not None:
-            result = sim_data["result"]
-            delta_text = sim_data["delta_text"]
-            pred_class = int(result.loc[0, "predicted_class"])
-            pred_label = result.loc[0, "predicted_label"]
-            prob = result.loc[0, "predicted_probability"]
-
-            risk_colors = config.get("risk_colors", {0: "#10b981", 1: "#f59e0b", 2: "#ef4444"})
-            color = risk_colors.get(pred_class, "#94a3b8")
-            kind_class = {0: "ok-box", 1: "warn-box", 2: "risk-box"}.get(pred_class, "interp-box")
-
-            html_content = f"""
-            <div class="{kind_class}" style="margin-top: 1rem;">
-                <div style="font-size: 0.95rem; color: var(--text-main);">
-                    Tingkat risiko kesehatan wilayah yang disimulasikan diprediksi berada pada kategori
-                    <strong style="color: {color};">{pred_label}</strong> dengan tingkat keyakinan (confidence) sebesar <strong>{prob:.2%}</strong>.
-                </div>
-            """
-
-            if delta_text:
-                html_content += f"""
-                <hr style="border: 0; border-top: 1px solid var(--border); margin: 0.75rem 0;">
-                <div style="font-size: 0.9rem; line-height: 1.6; color: var(--text-main);">
-                    {delta_text}
-                </div>
-                """
-            else:
-                html_content += f"""
-                <hr style="border: 0; border-top: 1px solid var(--border); margin: 0.75rem 0;">
-                <div style="font-size: 0.9rem; line-height: 1.6; color: var(--text-muted); font-style: italic;">
-                    Semua parameter berada pada nilai rata-rata (baseline). Ubah nilai parameter pada slider di sebelah kanan untuk menganalisis skenario alternatif (What-If).
-                </div>
-                """
-
-            html_content += "</div>"
-            st.markdown(html_content, unsafe_allow_html=True)
+            pass
 
 
 pg = st.navigation([

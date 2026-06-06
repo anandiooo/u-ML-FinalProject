@@ -31,10 +31,10 @@ def generate_eda_interpretation(feature_name, df, target_col, config):
         feature_display = feature_name.replace("_", " ").title()
 
         interp = (
-            f"**Interpretasi Otomatis:** Wilayah dengan Risiko Tinggi memiliki rata-rata *{feature_display}* "
-            f"sebesar **{mean_high:.1f}**, yang mana **{direction}** dibandingkan dengan wilayah Risiko Rendah "
+            f"<strong>Interpretasi Otomatis:</strong> Wilayah dengan Risiko Tinggi memiliki rata-rata *{feature_display}* "
+            f"sebesar <strong>{mean_high:.1f}</strong>, yang mana <strong>{direction}</strong> dibandingkan dengan wilayah Risiko Rendah "
             f"({mean_low:.1f}). Perbedaan sebesar {diff_pct:.1f}% ini menunjukkan bahwa indikator ini memiliki "
-            f"sinyal prediksi yang **{strength}** terhadap risiko kesehatan."
+            f"sinyal prediksi yang <strong>{strength}</strong> terhadap risiko kesehatan."
         )
         return interp
 
@@ -59,8 +59,8 @@ def generate_correlation_interpretation(df, target_col, features, config):
     direction = "berbanding lurus" if top_val > 0 else "berbanding terbalik"
 
     return (
-        f"**Interpretasi Otomatis:** *{top_feature.replace('_', ' ').title()}* adalah prediktor terkuat "
-        f"dengan korelasi {top_val:.2f}. Artinya, indikator ini **{direction}** dengan tingkat risiko kesehatan. "
+        f"<strong>Interpretasi Otomatis:</strong> *{top_feature.replace('_', ' ').title()}* adalah prediktor terkuat "
+        f"dengan korelasi {top_val:.2f}. Artinya, indikator ini <strong>{direction}</strong> dengan tingkat risiko kesehatan. "
         f"Variabel dengan nilai korelasi absolut > 0.3 sangat penting dalam perencanaan wilayah."
     )
 
@@ -87,7 +87,7 @@ def generate_simulation_delta(baseline_inputs, current_inputs, current_result, c
             display_name = FEATURE_LABELS.get(k, k.replace("_", " ").title())
             pct_change = abs(v - base_v) / (abs(base_v) + 1e-5) * 100
             changes.append(
-                f"**{display_name}** {direction} dari {base_v:.1f} → {v:.1f} "
+                f"<strong>{display_name}</strong> {direction} dari {base_v:.1f} → {v:.1f} "
                 f"({pct_change:.0f}%)"
             )
 
