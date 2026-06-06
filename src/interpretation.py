@@ -1,4 +1,3 @@
-import numpy as np
 import pandas as pd
 
 
@@ -7,8 +6,8 @@ def generate_eda_interpretation(feature_name, df, target_col, config):
 
     if df is None or feature_name not in df.columns or target_col not in df.columns:
         return ""
-        
-    risk_labels = config.get("risk_labels", {0: "Rendah", 1: "Sedang", 2: "Tinggi"})
+
+    risk_labels = config.get("risk_labels", {0: "Risiko Rendah", 1: "Risiko Sedang", 2: "Risiko Tinggi"})
 
     is_numeric = pd.api.types.is_numeric_dtype(df[feature_name])
 
@@ -21,24 +20,24 @@ def generate_eda_interpretation(feature_name, df, target_col, config):
         mean_high = means.get(2, 0)
 
         if pd.isna(mean_low) or pd.isna(mean_high):
-            return "Data tidak cukup untuk interpretasi otomatis."
+            return "Insufficient data for automatic interpretation."
 
         diff_pct = abs(mean_high - mean_low) / (mean_low + 1e-5) * 100
-        direction = "lebih tinggi" if mean_high > mean_low else "lebih rendah"
+        direction = "higher" if mean_high > mean_low else "lower"
 
-        strength = "Kuat" if diff_pct > 20 else ("Sedang" if diff_pct > 10 else "Lemah")
+        strength = "Strong" if diff_pct > 20 else ("Moderate" if diff_pct > 10 else "Weak")
 
         feature_display = feature_name.replace("_", " ").title()
 
         interp = (
-            f"<strong>Interpretasi Otomatis:</strong> Wilayah dengan Risiko Tinggi memiliki rata-rata *{feature_display}* "
-            f"sebesar <strong>{mean_high:.1f}</strong>, yang mana <strong>{direction}</strong> dibandingkan dengan wilayah Risiko Rendah "
-            f"({mean_low:.1f}). Perbedaan sebesar {diff_pct:.1f}% ini menunjukkan bahwa indikator ini memiliki "
-            f"sinyal prediksi yang <strong>{strength}</strong> terhadap risiko kesehatan."
+            f"<strong>Auto Interpretation:</strong> High-risk areas have an average *{feature_display}* "
+            f"of <strong>{mean_high:.1f}</strong>, which is <strong>{direction}</strong> compared to low-risk areas "
+            f"({mean_low:.1f}). This {diff_pct:.1f}% difference indicates that this indicator has a "
+            f"<strong>{strength}</strong> predictive signal for health risk."
         )
         return interp
 
-    return "Analisis otomatis untuk fitur kategorikal belum tersedia."
+    return "Automatic analysis for categorical features is not yet available."
 
 
 def generate_correlation_interpretation(df, target_col, features, config):
@@ -56,12 +55,12 @@ def generate_correlation_interpretation(df, target_col, features, config):
     top_feature = corr_abs.index[0]
     top_val = corr.loc[top_feature]
 
-    direction = "berbanding lurus" if top_val > 0 else "berbanding terbalik"
+    direction = "positively correlated" if top_val > 0 else "negatively correlated"
 
     return (
-        f"<strong>Interpretasi Otomatis:</strong> *{top_feature.replace('_', ' ').title()}* adalah prediktor terkuat "
-        f"dengan korelasi {top_val:.2f}. Artinya, indikator ini <strong>{direction}</strong> dengan tingkat risiko kesehatan. "
-        f"Variabel dengan nilai korelasi absolut > 0.3 sangat penting dalam perencanaan wilayah."
+        f"<strong>Auto Interpretation:</strong> *{top_feature.replace('_', ' ').title()}* is the strongest predictor "
+        f"with a correlation of {top_val:.2f}. This means this indicator is <strong>{direction}</strong> with health risk level. "
+        f"Variables with absolute correlation > 0.3 are critical in regional planning."
     )
 
 
@@ -83,11 +82,11 @@ def generate_simulation_delta(baseline_inputs, current_inputs, current_result, c
     for k, v in current_inputs.items():
         base_v = baseline_inputs.get(k, v)
         if abs(v - base_v) > 0.01:
-            direction = "meningkat" if v > base_v else "menurun"
+            direction = "increased" if v > base_v else "decreased"
             display_name = FEATURE_LABELS.get(k, k.replace("_", " ").title())
             pct_change = abs(v - base_v) / (abs(base_v) + 1e-5) * 100
             changes.append(
-                f"<strong>{display_name}</strong> {direction} dari {base_v:.1f} → {v:.1f} "
+                f"<strong>{display_name}</strong> {direction} from {base_v:.1f} → {v:.1f} "
                 f"({pct_change:.0f}%)"
             )
 
@@ -98,9 +97,9 @@ def generate_simulation_delta(baseline_inputs, current_inputs, current_result, c
     risk_label = current_result.loc[0, "predicted_label"]
 
     return (
-        f"<strong>Skenario Simulasi (What-If):</strong><br>"
-        f"Perubahan parameter yang Anda lakukan:<br>• {changes_str}<br><br>"
-        f"Berdasarkan perubahan kondisi lingkungan ini, model memprediksi wilayah ini akan masuk ke kategori "
-        f"<strong>{risk_label}</strong>. Informasi ini membantu pemerintah daerah mengantisipasi dampak "
-        f"sebelum krisis terjadi."
+        f"<strong>What-If Scenario:</strong><br>"
+        f"Parameter changes you made:<br>• {changes_str}<br><br>"
+        f"Based on these environmental condition changes, the model predicts the region will fall into the "
+        f"<strong>{risk_label}</strong> category. This information helps local governments anticipate impacts "
+        f"before a crisis occurs."
     )

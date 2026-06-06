@@ -9,7 +9,7 @@ import streamlit as st
 from src.modeling import predict_risk
 
 FEATURE_LABELS = {
-    "kepadatan_penduduk": "Kepadatan Penduduk (jiwa/km\u00b2)",
+    "kepadatan_penduduk": "Kepadatan Penduduk (jiwa/km²)",
     "pct_tanpa_sanitasi": "% Tanpa Sanitasi Layak",
     "pct_tanpa_air_bersih": "% Tanpa Air Bersih",
     "volume_sampah_harian": "Volume Sampah Harian (ton)",
@@ -93,7 +93,7 @@ def _metric_card(label, value, sub=""):
 
 
 def render_dashboard(config, df, metrics=None):
-    st.markdown('<div class="section-heading">Ringkasan Wilayah (Regional Summary)</div>', unsafe_allow_html=True)
+    st.markdown('<div class="section-heading">Regional Summary</div>', unsafe_allow_html=True)
 
     total_regions = len(df)
     avg_risk = df.get("predicted_class", df.get("risk_class")).mean()
@@ -101,13 +101,13 @@ def render_dashboard(config, df, metrics=None):
 
     c1, c2, c3 = st.columns(3)
     with c1:
-        _metric_card("Total Wilayah", f"{total_regions:,}", "Area yang dipantau")
+        _metric_card("Total Regions", f"{total_regions:,}", "Areas being monitored")
     with c2:
-        _metric_card("Rata-rata Risiko", f"{avg_risk:.2f}", "0 (Rendah) - 2 (Tinggi)")
+        _metric_card("Average Risk", f"{avg_risk:.2f}", "0 (Low) - 2 (High)")
     with c3:
-        _metric_card("Risiko Tinggi", f"{high_risk:,}", "Target prioritas sanitasi")
+        _metric_card("High Risk", f"{high_risk:,}", "Sanitation priority targets")
 
-    st.markdown('<div class="section-heading">Distribusi Risiko (Risk Distribution)</div>', unsafe_allow_html=True)
+    st.markdown('<div class="section-heading">Risk Distribution</div>', unsafe_allow_html=True)
     risk_col = "predicted_label" if "predicted_label" in df.columns else "risk_class"
     risk_counts = df[risk_col].value_counts().reset_index()
     risk_counts.columns = ["Risk", "Count"]
@@ -116,7 +116,7 @@ def render_dashboard(config, df, metrics=None):
     st.plotly_chart(fig, use_container_width=True)
 
     if metrics:
-        st.markdown('<div class="section-heading">Kinerja Model (Model Performance)</div>', unsafe_allow_html=True)
+        st.markdown('<div class="section-heading">Model Performance</div>', unsafe_allow_html=True)
         c1, c2, c3, c4 = st.columns(4)
         c1.metric("Macro F1", f"{metrics.get('macro_f1', 0):.3f}")
         c2.metric("Precision", f"{metrics.get('macro_precision', 0):.3f}")
@@ -125,17 +125,17 @@ def render_dashboard(config, df, metrics=None):
 
         # Interpretation
         macro_f1 = metrics.get('macro_f1', 0)
-        perf_text = "Sangat Baik" if macro_f1 > 0.8 else ("Baik" if macro_f1 > 0.6 else "Perlu Ditingkatkan")
+        perf_text = "Excellent" if macro_f1 > 0.8 else ("Good" if macro_f1 > 0.6 else "Needs Improvement")
         st.markdown(
-            f"<div class='interp-box'><strong>Interpretasi Otomatis:</strong> Kinerja model secara keseluruhan berada di tingkat "
-            f"<strong>{perf_text}</strong> (Macro F1: {macro_f1:.2f}). Ini berarti sistem ini {'cukup andal' if macro_f1 > 0.6 else 'kurang dapat diandalkan'} "
-            f"untuk mengidentifikasi secara akurat wilayah mana saja yang paling rawan terhadap penyakit berbasis lingkungan.</div>",
+            f"<div class='interp-box'><strong>Auto Interpretation:</strong> Overall model performance is at "
+            f"<strong>{perf_text}</strong> level (Macro F1: {macro_f1:.2f}). This means the system is {'reliable enough' if macro_f1 > 0.6 else 'not reliable enough'} "
+            f"to accurately identify which areas are most vulnerable to environment-based diseases.</div>",
             unsafe_allow_html=True
         )
 
 
 def render_heatmap(config, df):
-    st.markdown('<div class="section-heading">Peta Risiko Keruangan (Spatial Risk Heatmap)</div>', unsafe_allow_html=True)
+    st.markdown('<div class="section-heading">Spatial Risk Heatmap</div>', unsafe_allow_html=True)
     map_obj = build_risk_map(df, config)
     st.components.v1.html(map_obj.get_root().render(), height=520)
 
@@ -161,18 +161,18 @@ def render_heatmap(config, df):
                 dominant_str = str(dominant_risk)
 
             st.markdown(
-                f"<div class='interp-box'><strong>Interpretasi Peta Otomatis:</strong> Secara keseluruhan wilayah didominasi oleh kategori "
-                f"<strong>{dominant_str}</strong> yang mencakup {pct:.1f}% dari area pada dataset saat ini. "
-                f"Pola penyebaran ini dapat membantu dinas kesehatan memfokuskan alokasi anggaran dan SDM kesehatan.</div>",
+                f"<div class='interp-box'><strong>Auto Map Interpretation:</strong> Overall, the region is dominated by "
+                f"<strong>{dominant_str}</strong> category which covers {pct:.1f}% of the area in the current dataset. "
+                f"This distribution pattern can help health services focus budget and healthcare workforce allocation.</div>",
                 unsafe_allow_html=True
             )
 
 
 def render_simulation(config, df, artifacts):
-    st.markdown('<div class="section-heading">Simulasi Skenario (What-If Analysis)</div>', unsafe_allow_html=True)
+    st.markdown('<div class="section-heading">What-If Analysis</div>', unsafe_allow_html=True)
 
     if artifacts is None:
-        st.warning("Latih model terlebih dahulu untuk mengaktifkan simulasi.")
+        st.warning("Train the model first to enable simulation.")
         return None
 
     features = config["features"]
@@ -209,10 +209,8 @@ def render_simulation(config, df, artifacts):
 
 
 def render_data(config, df):
-    st.markdown('<div class="section-heading">Eksplorasi Data (Exploratory Data Analysis)</div>', unsafe_allow_html=True)
-
     tab_raw, tab_dist, tab_target, tab_scatter, tab_corr = st.tabs([
-        "Data Mentah", "Distribusi Fitur", "Analisis Risiko", "Sebaran (Scatter)", "Korelasi"
+        "Raw Data", "Feature Distribution", "Risk Analysis", "Scatter Plot", "Correlation"
     ])
 
     features = config["features"]
@@ -230,7 +228,7 @@ def render_data(config, df):
     color_map = {risk_labels[k]: v for k, v in risk_colors.items()}
 
     with tab_raw:
-        st.caption(f"Menampilkan total {len(df):,} rekam data")
+        st.caption(f"Showing total {len(df):,} data records")
         st.dataframe(df.rename(columns=FEATURE_LABELS), use_container_width=True, height=400)
 
     with tab_dist:

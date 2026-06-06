@@ -251,12 +251,12 @@ else:
     df_view = df.copy()
 
 def page_home():
-    page_header("Spatial-Based Health Risk Prediction System", "Sistem Pendukung Keputusan Berbasis Tata Ruang")
+    page_header("Spatial-Based Health Risk Prediction System", "A Spatial Planning Decision Support System")
 
     st.markdown('<div class="section-heading">Problem Statement</div>', unsafe_allow_html=True)
     st.markdown("""
     <div style="font-size: 1.05rem; line-height: 1.6; color: var(--text-main); margin-bottom: 2rem;">
-        Merujuk pada target RPJMN 2025–2029 dan pilar Smart City, Perencanaan infrastruktur kesehatan dan tata kota, khususnya di kawasan aglomerasi padat penduduk seperti area Jakarta dan Bekasi, seringkali masih berjalan secara terpisah dan reaktif. Data kondisi lingkungan, seperti kualitas sanitasi, jarang dihubungkan secara langsung dengan data penyebaran penyakit dasar seperti ISPA atau diare. Akibatnya, tindakan penanganan biasanya baru diturunkan setelah lonjakan kasus penyakit terjadi di suatu kecamatan. Proyek ini mengusulkan sebuah Sistem Pendukung Keputusan (Decision Support System) berbasis data keruangan. Sistem ini dirancang untuk memprediksi tingkat risiko kesehatan di suatu wilayah secara proaktif.
+        Aligned with the 2025–2029 RPJMN targets and Smart City pillars, health infrastructure and city planning, particularly in densely populated agglomeration areas like Jakarta and Bekasi, often operate separately and reactively. Environmental data, such as sanitation quality, is rarely directly connected to baseline disease distribution data like ARI or diarrhea. As a result, response measures are typically only implemented after disease cases spike in a district. This project proposes a data-driven Spatial Decision Support System designed to proactively predict health risk levels in a region.
     </div>
     """, unsafe_allow_html=True)
 
@@ -264,12 +264,12 @@ def page_home():
 
 
 def page_eda():
-    page_header("Eksplorasi Data", "Tinjauan Kualitas Lingkungan & Kesehatan")
+    page_header("Data Exploration", "Overview of Environmental & Health Quality")
     render_data(config, df_view)
 
 
 def page_preprocessing():
-    page_header("Preprocessing", "Konfigurasi dan verifikasi pipeline data")
+    page_header("Preprocessing", "Configure and verify data pipeline")
 
     features = config["features"]
     target = config["target"]
@@ -367,7 +367,7 @@ def page_preprocessing():
         dist_data = []
         for cls_id in sorted(counts.index):
             label = risk_labels.get(cls_id, risk_labels.get(str(cls_id), str(cls_id)))
-            dist_data.append({"Kelas": label, "Jumlah": counts[cls_id], "Persentase": counts[cls_id] / len(df_preview)})
+            dist_data.append({"Class": label, "Count": counts[cls_id], "Percentage": counts[cls_id] / len(df_preview)})
         m4.metric("Total Classes", f"{len(counts)}")
     else:
         m4.metric("Total Classes", "N/A")
@@ -377,7 +377,7 @@ def page_preprocessing():
         st.markdown('<div class="section-heading">Class Distribution</div>', unsafe_allow_html=True)
         dist_df = pd.DataFrame(dist_data)
         st.dataframe(
-            dist_df.style.format({"Persentase": "{:.1%}"}),
+            dist_df.style.format({"Percentage": "{:.1%}"}),
             hide_index=True,
             use_container_width=True,
         )
@@ -406,7 +406,7 @@ def page_preprocessing():
 
 
 def page_train_eval():
-    page_header("Train & Evaluate", "Latih model dan evaluasi performa")
+    page_header("Train & Evaluate", "Train models and evaluate performance")
 
     tab_train, tab_eval = st.tabs(["Train", "Evaluate"])
 
@@ -494,7 +494,7 @@ def page_train_eval():
                     st.markdown(f"- **{k}:** `{v}`")
             else:
                 ibox(
-                    "<strong>Model belum dilatih.</strong><br>Klik tombol Train Models untuk melatih model.",
+                    "<strong>Model not yet trained.</strong><br>Click the Train Models button to train the model.",
                     kind="warn",
                 )
 
@@ -522,12 +522,13 @@ def page_train_eval():
 
         # Interpretation
         macro_f1 = metrics.get("macro_f1", 0)
-        perf_text = "Sangat Baik" if macro_f1 > 0.8 else ("Baik" if macro_f1 > 0.6 else "Perlu Ditingkatkan")
+        perf_text = "Excellent" if macro_f1 > 0.8 else ("Good" if macro_f1 > 0.6 else "Needs Improvement")
         ibox(
-            f"<strong>Interpretasi Otomatis:</strong> Kinerja model berada di tingkat "
-            f"<strong>{perf_text}</strong> (Macro F1: {macro_f1:.3f}). "
-            f"{'Model cukup andal' if macro_f1 > 0.6 else 'Model kurang andal'} "
-            f"untuk mengidentifikasi wilayah berisiko."
+            f"<strong>Auto Interpretation:</strong> Model performance is at "
+            f"<strong>{perf_text}</strong> level (Macro F1: {macro_f1:.3f}). "
+            f"{'The model is reliable enough' if macro_f1 > 0.6 else 'The model is not reliable enough'} "
+            f"to accurately identify areas at risk.",
+            kind="info"
         )
 
         st.divider()
@@ -569,7 +570,7 @@ def page_train_eval():
 
 
 def page_spatial_map():
-    page_header("Analisis Spasial", "Peta Risiko & Simulasi Skenario")
+    page_header("Spatial Analysis", "Risk Map & Scenario Simulation")
 
     col_map, col_sim = st.columns([70, 30], gap="large")
 
@@ -578,7 +579,7 @@ def page_spatial_map():
 
     with col_map:
         if artifacts is None:
-            st.markdown('<div class="warn-box"><strong>Model belum dilatih.</strong><br>Silakan latih model terlebih dahulu.</div>', unsafe_allow_html=True)
+            st.markdown('<div class="warn-box"><strong>Model not yet trained.</strong><br>Please train the model first.</div>', unsafe_allow_html=True)
 
         # Build a custom map that includes the simulation point
         render_heatmap(config, df_view)
