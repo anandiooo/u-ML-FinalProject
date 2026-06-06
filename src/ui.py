@@ -54,7 +54,7 @@ def build_risk_map(df, config):
                 fill=True,
                 fill_color=color,
                 fill_opacity=0.85,
-                popup=f"{row.get('region_name', 'Region')} - {label}",
+                popup=f"{row.get('kecamatan', row.get('region_name', 'Region'))} - {label}",
             ).add_to(m)
 
     return m
@@ -72,7 +72,7 @@ def _metric_card(label, value, sub=""):
 
 
 def render_dashboard(config, df, metrics=None):
-    st.markdown('<div class="section-heading">Regional Summary</div>', unsafe_allow_html=True)
+    st.markdown('<div class="section-heading">Ringkasan Wilayah (Regional Summary)</div>', unsafe_allow_html=True)
 
     total_regions = len(df)
     avg_risk = df.get("predicted_class", df.get("risk_class")).mean()
@@ -80,13 +80,13 @@ def render_dashboard(config, df, metrics=None):
 
     c1, c2, c3 = st.columns(3)
     with c1:
-        _metric_card("Regions", f"{total_regions:,}", "tracked areas")
+        _metric_card("Total Wilayah", f"{total_regions:,}", "Area yang dipantau")
     with c2:
-        _metric_card("Avg Risk", f"{avg_risk:.2f}", "0 low - 2 high")
+        _metric_card("Rata-rata Risiko", f"{avg_risk:.2f}", "0 (Rendah) - 2 (Tinggi)")
     with c3:
-        _metric_card("High Risk", f"{high_risk:,}", "priority targets")
+        _metric_card("Risiko Tinggi", f"{high_risk:,}", "Target prioritas sanitasi")
 
-    st.markdown('<div class="section-heading">Risk Distribution</div>', unsafe_allow_html=True)
+    st.markdown('<div class="section-heading">Distribusi Risiko (Risk Distribution)</div>', unsafe_allow_html=True)
     risk_col = "predicted_label" if "predicted_label" in df.columns else "risk_class"
     risk_counts = df[risk_col].value_counts().reset_index()
     risk_counts.columns = ["Risk", "Count"]
@@ -95,25 +95,63 @@ def render_dashboard(config, df, metrics=None):
     st.plotly_chart(fig, use_container_width=True)
 
     if metrics:
-        st.markdown('<div class="section-heading">Model Performance</div>', unsafe_allow_html=True)
+        st.markdown('<div class="section-heading">Kinerja Model (Model Performance)</div>', unsafe_allow_html=True)
         c1, c2, c3, c4 = st.columns(4)
         c1.metric("Macro F1", f"{metrics.get('macro_f1', 0):.3f}")
         c2.metric("Precision", f"{metrics.get('macro_precision', 0):.3f}")
         c3.metric("Recall", f"{metrics.get('macro_recall', 0):.3f}")
         c4.metric("Micro F1", f"{metrics.get('micro_f1', 0):.3f}")
+        
+        # Interpretation
+        macro_f1 = metrics.get('macro_f1', 0)
+        perf_text = "Sangat Baik" if macro_f1 > 0.8 else ("Baik" if macro_f1 > 0.6 else "Perlu Ditingkatkan")
+        st.markdown(
+            f"<div class='interp-box'><strong>Interpretasi Otomatis:</strong> Kinerja model secara keseluruhan berada di tingkat "
+            f"**{perf_text}** (Macro F1: {macro_f1:.2f}). Ini berarti sistem ini {'cukup andal' if macro_f1 > 0.6 else 'kurang dapat diandalkan'} "
+            f"untuk mengidentifikasi secara akurat wilayah mana saja yang paling rawan terhadap penyakit berbasis lingkungan.</div>",
+            unsafe_allow_html=True
+        )
 
 
 def render_heatmap(config, df):
-    st.markdown('<div class="section-heading">Spatial Risk Heatmap</div>', unsafe_allow_html=True)
+    st.markdown('<div class="section-heading">Peta Risiko Keruangan (Spatial Risk Heatmap)</div>', unsafe_allow_html=True)
     map_obj = build_risk_map(df, config)
     st.components.v1.html(map_obj.get_root().render(), height=520)
+    
+    # Interpretation
+    risk_col = "predicted_label" if "predicted_label" in df.columns else "risk_class"
+    
+    # Check if this is the full dataframe or just simulation
+    if len(df) > 1:
+        # Check distribution for map interpretation
+        counts = df[risk_col].value_counts()
+        total = len(df)
+        
+        # Determine dominant risk
+        if not counts.empty:
+            dominant_risk = counts.idxmax()
+            pct = (counts.max() / total) * 100
+            
+            # Use mapping to ensure we have string representation if it's numeric
+            if isinstance(dominant_risk, (int, float)):
+                risk_map = {0: "Risiko Rendah", 1: "Risiko Sedang", 2: "Risiko Tinggi"}
+                dominant_str = risk_map.get(int(dominant_risk), str(dominant_risk))
+            else:
+                dominant_str = str(dominant_risk)
+                
+            st.markdown(
+                f"<div class='interp-box'><strong>Interpretasi Peta Otomatis:</strong> Secara keseluruhan wilayah didominasi oleh kategori "
+                f"**{dominant_str}** yang mencakup {pct:.1f}% dari area pada dataset saat ini. "
+                f"Pola penyebaran ini dapat membantu dinas kesehatan memfokuskan alokasi anggaran dan SDM kesehatan.</div>",
+                unsafe_allow_html=True
+            )
 
 
 def render_simulation(config, df, artifacts):
-    st.markdown('<div class="section-heading">Scenario Simulator</div>', unsafe_allow_html=True)
+    st.markdown('<div class="section-heading">Simulasi Skenario (What-If Analysis)</div>', unsafe_allow_html=True)
 
     if artifacts is None:
-        st.warning("Train or load models to enable simulations.")
+        st.warning("Latih model terlebih dahulu untuk mengaktifkan simulasi.")
         return
 
     features = config["features"]
@@ -133,23 +171,29 @@ def render_simulation(config, df, artifacts):
         prob = result.loc[0, "predicted_probability"]
 
         st.markdown(
-            f"<div class='interp-box'><strong>Predicted Risk:</strong> {label}<br>"
-            f"Confidence: {prob:.2f}</div>",
+            f"<div class='interp-box'><strong>Prediksi Risiko:</strong> {label}<br>"
+            f"Kepercayaan (Confidence): {prob:.2f}</div>",
             unsafe_allow_html=True,
         )
+        
+        from src.interpretation import generate_simulation_delta
+        baseline_inputs = df[features].median(numeric_only=True).to_dict()
+        delta_text = generate_simulation_delta(baseline_inputs, sim_inputs, result, config)
+        if delta_text:
+            st.markdown(f"<div class='warn-box'>{delta_text}</div>", unsafe_allow_html=True)
 
 
 def render_data(config, df):
-    st.markdown('<div class="section-heading">Exploratory Data Analysis</div>', unsafe_allow_html=True)
+    st.markdown('<div class="section-heading">Eksplorasi Data (Exploratory Data Analysis)</div>', unsafe_allow_html=True)
 
     tab_raw, tab_dist, tab_target, tab_scatter, tab_corr = st.tabs([
-        "Raw Data", "Distributions", "Target Analysis", "Scatter", "Correlations"
+        "Data Mentah", "Distribusi Fitur", "Analisis Risiko", "Sebaran (Scatter)", "Korelasi"
     ])
 
     features = config["features"]
     target_col = "risk_class"
-    risk_labels = config.get("risk_labels", {0: "Baik", 1: "Ringan", 2: "Sedang", 3: "Berat"})
-    risk_colors = config.get("risk_colors", {0: "#10b981", 1: "#f59e0b", 2: "#ef4444", 3: "#7f1d1d"})
+    risk_labels = config.get("risk_labels", {0: "Risiko Rendah", 1: "Risiko Sedang", 2: "Risiko Tinggi"})
+    risk_colors = config.get("risk_colors", {0: "#10b981", 1: "#f59e0b", 2: "#ef4444"})
 
     df_plot = df.copy()
     if "predicted_label" in df_plot.columns:
@@ -161,7 +205,7 @@ def render_data(config, df):
     color_map = {risk_labels[k]: v for k, v in risk_colors.items()}
 
     with tab_raw:
-        st.caption(f"Showing all {len(df):,} records")
+        st.caption(f"Menampilkan total {len(df):,} rekam data")
         st.dataframe(df, use_container_width=True, height=400)
 
     with tab_dist:
@@ -177,6 +221,11 @@ def render_data(config, df):
         )
         fig.update_layout(legend_title="Status", margin=dict(t=40, b=20))
         st.plotly_chart(fig, use_container_width=True)
+        
+        from src.interpretation import generate_eda_interpretation
+        interp_text = generate_eda_interpretation(feature, df, target_col, config)
+        if interp_text:
+            st.markdown(f"<div class='interp-box'>{interp_text}</div>", unsafe_allow_html=True)
 
     with tab_target:
         col_ctrl2, _ = st.columns([2, 3])
@@ -213,3 +262,8 @@ def render_data(config, df):
         )
         fig_heat.update_layout(margin=dict(t=40, b=20))
         st.plotly_chart(fig_heat, use_container_width=True)
+        
+        from src.interpretation import generate_correlation_interpretation
+        corr_text = generate_correlation_interpretation(df_plot, target_col, features, config)
+        if corr_text:
+            st.markdown(f"<div class='interp-box'>{corr_text}</div>", unsafe_allow_html=True)

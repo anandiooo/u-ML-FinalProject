@@ -229,51 +229,339 @@ if artifacts:
 else:
     df_view = df.copy()
 
-with st.sidebar:
-    st.markdown("### SaniSight AI")
-    st.caption("Spatial-based health risk prediction")
-
-    if st.button("Train / Refresh Models", type="primary", use_container_width=True):
-        with st.spinner("Training models..."):
-            run_training_pipeline()
-        st.cache_resource.clear()
-        st.cache_data.clear()
-        st.rerun()
-
-    st.markdown("---")
-    st.write("Dataset:", config["project"]["data_path"])
-    if artifacts is None:
-        st.warning("Models not found. Train to enable predictions.")
-
-
-def page_dashboard():
-    page_header("SaniSight AI", "Spatial-based health risk prediction system")
+def page_home():
+    page_header("SaniSight AI", "Sistem Pendukung Keputusan Berbasis Tata Ruang")
     render_dashboard(config, df_view, metrics)
 
 
-def page_spatial_analysis():
-    page_header("Spatial Analysis", "Heatmap & Scenario Simulator")
-    
+def page_eda():
+    page_header("Eksplorasi Data", "Tinjauan Kualitas Lingkungan & Kesehatan")
+    render_data(config, df_view)
+
+
+def page_preprocessing():
+    page_header("Preprocessing", "Konfigurasi dan verifikasi pipeline data")
+
+    features = config["features"]
+    target = config["target"]
+
+    # ── Pipeline Configuration ──
+    st.markdown('<div class="section-heading">Pipeline Configuration</div>', unsafe_allow_html=True)
+    c1, c2, c3 = st.columns(3)
+
+    with c1:
+        missing_strategy = st.selectbox(
+            "Missing Value Strategy",
+            ["Median", "Mean", "Drop Rows"],
+            index=0,
+            help="How to handle missing values in numeric features.",
+        )
+        drop_duplicates = st.checkbox("Drop Duplicate Rows", value=True)
+
+    with c2:
+        scaling_method = st.selectbox(
+            "Feature Scaling",
+            ["StandardScaler", "MinMaxScaler", "None"],
+            index=0,
+            help="Scaling method applied to numeric features before training.",
+        )
+        outlier_method = st.selectbox(
+            "Outlier Handling",
+            ["None", "Clip (IQR)", "Remove"],
+            index=0,
+            help="Strategy for outlier treatment on numeric columns.",
+        )
+
+    with c3:
+        selected_features = st.multiselect(
+            "Features to Include",
+            features,
+            default=features,
+            help="Select which features to keep for modeling.",
+        )
+
+    st.session_state["preprocess_cfg"] = {
+        "missing_strategy": missing_strategy,
+        "scaling_method": scaling_method,
+        "outlier_method": outlier_method,
+        "drop_duplicates": drop_duplicates,
+        "selected_features": selected_features,
+    }
+
+    st.divider()
+
+    # ── Apply preview transformations ──
+    df_preview = df.copy()
+
+    # Drop duplicates
+    orig_len = len(df_preview)
+    if drop_duplicates:
+        df_preview = df_preview.drop_duplicates()
+
+    # Handle missing values
+    num_cols = [c for c in selected_features if c in df_preview.columns]
+    if missing_strategy == "Median":
+        df_preview[num_cols] = df_preview[num_cols].fillna(df_preview[num_cols].median())
+    elif missing_strategy == "Mean":
+        df_preview[num_cols] = df_preview[num_cols].fillna(df_preview[num_cols].mean())
+    elif missing_strategy == "Drop Rows":
+        df_preview = df_preview.dropna(subset=num_cols)
+
+    # Outlier handling
+    if outlier_method == "Clip (IQR)":
+        for col in num_cols:
+            q1 = df_preview[col].quantile(0.25)
+            q3 = df_preview[col].quantile(0.75)
+            iqr = q3 - q1
+            df_preview[col] = df_preview[col].clip(q1 - 1.5 * iqr, q3 + 1.5 * iqr)
+    elif outlier_method == "Remove":
+        for col in num_cols:
+            q1 = df_preview[col].quantile(0.25)
+            q3 = df_preview[col].quantile(0.75)
+            iqr = q3 - q1
+            mask = (df_preview[col] >= q1 - 1.5 * iqr) & (df_preview[col] <= q3 + 1.5 * iqr)
+            df_preview = df_preview[mask]
+
+    # ── Live Quality Audit ──
+    st.markdown('<div class="section-heading">Live Quality Audit</div>', unsafe_allow_html=True)
+    m1, m2, m3, m4 = st.columns(4)
+    m1.metric("Dataset Rows", f"{len(df_preview):,}", delta=int(len(df_preview) - orig_len))
+    m2.metric("Selected Features", f"{len(selected_features)}", delta=int(len(selected_features) - len(features)))
+    missing_clean = df_preview[num_cols].isnull().sum().sum() if num_cols else 0
+    missing_orig = df[num_cols].isnull().sum().sum() if num_cols else 0
+    m3.metric("Missing Cells", f"{missing_clean:,}", delta=int(-(missing_orig - missing_clean)) if missing_orig > 0 else 0)
+
+    if target in df_preview.columns:
+        counts = df_preview[target].value_counts()
+        risk_labels = config.get("risk_labels", {})
+        dist_data = []
+        for cls_id in sorted(counts.index):
+            label = risk_labels.get(cls_id, risk_labels.get(str(cls_id), str(cls_id)))
+            dist_data.append({"Kelas": label, "Jumlah": counts[cls_id], "Persentase": counts[cls_id] / len(df_preview)})
+        m4.metric("Total Classes", f"{len(counts)}")
+    else:
+        m4.metric("Total Classes", "N/A")
+
+    # Class distribution table
+    if target in df_preview.columns and dist_data:
+        st.markdown('<div class="section-heading">Class Distribution</div>', unsafe_allow_html=True)
+        dist_df = pd.DataFrame(dist_data)
+        st.dataframe(
+            dist_df.style.format({"Persentase": "{:.1%}"}),
+            hide_index=True,
+            use_container_width=True,
+        )
+
+    # Active pipeline summary
+    st.markdown('<div class="section-heading">Active Pipeline Summary</div>', unsafe_allow_html=True)
+    pipe_items = [
+        f"Missing Values → **{missing_strategy}**",
+        f"Scaling → **{scaling_method}**",
+        f"Outliers → **{outlier_method}**",
+        f"Drop Duplicates → **{'Yes' if drop_duplicates else 'No'}**",
+        f"Features → **{len(selected_features)}** of {len(features)}",
+    ]
+    for item in pipe_items:
+        st.markdown(f"- {item}")
+
+    # Data Preview
+    st.markdown('<div class="section-heading">Data Preview (Processed)</div>', unsafe_allow_html=True)
+    st.dataframe(df_preview, use_container_width=True)
+    st.caption(f"Showing top 20 records of {len(df_preview):,} total.")
+
+    # Column Statistics
+    st.markdown('<div class="section-heading">Column Statistics</div>', unsafe_allow_html=True)
+    st.dataframe(df_preview[num_cols].describe() if num_cols else df_preview.describe(), use_container_width=True)
+
+
+def page_train_eval():
+    page_header("Train & Evaluate", "Latih model dan evaluasi performa")
+
+    tab_train, tab_eval = st.tabs(["Train", "Evaluate"])
+
+    with tab_train:
+        c_left, c_right = st.columns([1, 1], gap="large")
+
+        with c_left:
+            st.markdown('<div class="section-heading">Model Selection</div>', unsafe_allow_html=True)
+            model_choice = st.selectbox(
+                "Algorithm",
+                ["XGBoost (Primary)", "Logistic Regression (Baseline)"],
+                index=0,
+                help="Pick the machine learning algorithm to train.",
+            )
+
+            with st.expander("Hyperparameters", expanded=True):
+                st.caption("Adjusting these tunes the bias–variance tradeoff.")
+                train_cfg = config.get("training", {})
+
+                if model_choice.startswith("XGBoost"):
+                    xgb_cfg = train_cfg.get("xgboost", {})
+                    n_est = st.slider("n_estimators", 50, 500, int(xgb_cfg.get("n_estimators", 250)), 50)
+                    lr = st.slider("learning_rate", 0.01, 0.50, float(xgb_cfg.get("learning_rate", 0.08)), 0.01)
+                    depth = st.slider("max_depth", 2, 12, int(xgb_cfg.get("max_depth", 4)), 1)
+                    subsample = st.slider("subsample", 0.5, 1.0, float(xgb_cfg.get("subsample", 0.9)), 0.05)
+                    colsample = st.slider("colsample_bytree", 0.5, 1.0, float(xgb_cfg.get("colsample_bytree", 0.9)), 0.05)
+                    reg_lambda = st.slider("reg_lambda", 0.0, 10.0, float(xgb_cfg.get("reg_lambda", 1.0)), 0.5)
+                else:
+                    log_cfg = train_cfg.get("logistic", {})
+                    max_iter = st.slider("max_iter", 100, 1000, int(log_cfg.get("max_iter", 500)), 50)
+
+            with st.expander("Validation Settings", expanded=False):
+                test_size = st.slider("Test split", 0.10, 0.40, float(train_cfg.get("test_size", 0.2)), 0.05)
+                random_state = st.number_input("Random state", 0, 9999, int(train_cfg.get("random_state", 42)))
+
+            with st.expander("DBSCAN Clustering", expanded=False):
+                st.caption("Configure spatial clustering parameters.")
+                db_cfg = train_cfg.get("dbscan", {})
+                eps = st.slider("eps (neighborhood radius)", 0.1, 3.0, float(db_cfg.get("eps", 0.7)), 0.1)
+                min_samples = st.slider("min_samples", 2, 20, int(db_cfg.get("min_samples", 6)), 1)
+
+            if st.button("Train Models", type="primary", use_container_width=True):
+                # Update config with user selections before training
+                config["training"]["test_size"] = test_size
+                config["training"]["random_state"] = random_state
+                config["training"]["dbscan"]["eps"] = eps
+                config["training"]["dbscan"]["min_samples"] = min_samples
+
+                if model_choice.startswith("XGBoost"):
+                    config["training"]["xgboost"]["n_estimators"] = n_est
+                    config["training"]["xgboost"]["learning_rate"] = lr
+                    config["training"]["xgboost"]["max_depth"] = depth
+                    config["training"]["xgboost"]["subsample"] = subsample
+                    config["training"]["xgboost"]["colsample_bytree"] = colsample
+                    config["training"]["xgboost"]["reg_lambda"] = reg_lambda
+                else:
+                    config["training"]["logistic"]["max_iter"] = max_iter
+
+                with st.spinner("Training models..."):
+                    run_training_pipeline()
+                st.cache_resource.clear()
+                st.cache_data.clear()
+                st.toast("Training complete!")
+                st.rerun()
+
+        with c_right:
+            st.markdown('<div class="section-heading">Training Status</div>', unsafe_allow_html=True)
+            if artifacts is not None:
+                ibox(
+                    "<strong>Models are trained and ready.</strong><br>"
+                    "You can inspect results in the Evaluate tab or retrain with different settings.",
+                    kind="ok",
+                )
+                st.markdown('<div class="section-heading">Current Configuration</div>', unsafe_allow_html=True)
+                cfg_info = {
+                    "Test Size": f"{config.get('training', {}).get('test_size', 0.2):.0%}",
+                    "Random State": config.get("training", {}).get("random_state", 42),
+                    "XGB n_estimators": config.get("training", {}).get("xgboost", {}).get("n_estimators"),
+                    "XGB max_depth": config.get("training", {}).get("xgboost", {}).get("max_depth"),
+                    "XGB learning_rate": config.get("training", {}).get("xgboost", {}).get("learning_rate"),
+                    "DBSCAN eps": config.get("training", {}).get("dbscan", {}).get("eps"),
+                    "DBSCAN min_samples": config.get("training", {}).get("dbscan", {}).get("min_samples"),
+                }
+                for k, v in cfg_info.items():
+                    st.markdown(f"- **{k}:** `{v}`")
+            else:
+                ibox(
+                    "<strong>Model belum dilatih.</strong><br>Klik tombol Train Models untuk melatih model.",
+                    kind="warn",
+                )
+
+    with tab_eval:
+        if metrics is None:
+            st.info("Train a model first to see evaluation results here.")
+            return
+
+        # ── Macro metrics ──
+        st.markdown('<div class="section-heading">Overall Performance</div>', unsafe_allow_html=True)
+        mc = st.columns(4)
+        for col, label, key in zip(
+            mc,
+            ["Macro F1", "Macro Precision", "Macro Recall", "Micro F1"],
+            ["macro_f1", "macro_precision", "macro_recall", "micro_f1"],
+        ):
+            val = metrics.get(key, 0)
+            col.markdown(
+                f'<div class="metric-card" style="text-align:center">'
+                f'<div class="label">{label}</div>'
+                f'<div class="value" style="font-size:1.3rem">{val:.3f}</div>'
+                f'</div>',
+                unsafe_allow_html=True,
+            )
+
+        # Interpretation
+        macro_f1 = metrics.get("macro_f1", 0)
+        perf_text = "Sangat Baik" if macro_f1 > 0.8 else ("Baik" if macro_f1 > 0.6 else "Perlu Ditingkatkan")
+        ibox(
+            f"<strong>Interpretasi Otomatis:</strong> Kinerja model berada di tingkat "
+            f"<strong>{perf_text}</strong> (Macro F1: {macro_f1:.3f}). "
+            f"{'Model cukup andal' if macro_f1 > 0.6 else 'Model kurang andal'} "
+            f"untuk mengidentifikasi wilayah berisiko."
+        )
+
+        st.divider()
+
+        # ── Confusion matrix & Per-class metrics ──
+        col_cm, col_cls = st.columns(2)
+
+        with col_cm:
+            import plotly.express as px
+            cm = metrics.get("confusion_matrix")
+            if cm:
+                risk_labels = config.get("risk_labels", {0: "Rendah", 1: "Sedang", 2: "Tinggi"})
+                labels_list = [risk_labels.get(i, risk_labels.get(str(i), str(i))) for i in range(len(cm))]
+                cm_df = pd.DataFrame(cm, columns=[f"Pred: {l}" for l in labels_list], index=[f"Actual: {l}" for l in labels_list])
+                fig_cm = px.imshow(cm_df, text_auto=True, title="Confusion Matrix", color_continuous_scale="Blues")
+                fig_cm.update_layout(margin=dict(t=40, b=10), coloraxis_showscale=False)
+                st.plotly_chart(fig_cm, use_container_width=True)
+
+        with col_cls:
+            per_class = metrics.get("per_class")
+            if per_class:
+                st.markdown('<div class="section-heading">Per-Class Metrics</div>', unsafe_allow_html=True)
+                risk_labels = config.get("risk_labels", {})
+                cls_rows = []
+                for cls_id, cls_metrics in per_class.items():
+                    label = risk_labels.get(int(cls_id), risk_labels.get(cls_id, cls_id))
+                    cls_rows.append({
+                        "Risk Class": label,
+                        "Precision": cls_metrics.get("precision", 0),
+                        "Recall": cls_metrics.get("recall", 0),
+                        "F1-Score": cls_metrics.get("f1", 0),
+                    })
+                cls_df = pd.DataFrame(cls_rows)
+                st.dataframe(
+                    cls_df.style.format({"Precision": "{:.3f}", "Recall": "{:.3f}", "F1-Score": "{:.3f}"}),
+                    hide_index=True,
+                    use_container_width=True,
+                )
+
+
+def page_spatial_map():
+    page_header("Analisis Spasial", "Peta Risiko & Simulasi Skenario")
+
     col_map, col_sim = st.columns([3, 1], gap="large")
-    
+
     with col_map:
         if artifacts is None:
-            ibox("<strong>No models found.</strong><br>Train models to render predictions on the map.", kind="warn")
+            ibox("<strong>Model belum dilatih.</strong><br>Silakan latih model terlebih dahulu.", kind="warn")
         render_heatmap(config, df_view)
-        
+
     with col_sim:
         render_simulation(config, df, artifacts)
 
 
-def page_data():
-    page_header("Exploratory Data Analysis", "Raw and enriched dataset view")
-    render_data(config, df_view)
-
-
 pg = st.navigation([
-    st.Page(page_dashboard, title="Dashboard Overview", default=True),
-    st.Page(page_spatial_analysis, title="Spatial Analysis"),
-    st.Page(page_data, title="EDA"),
+    st.Page(page_home,          title="Home",             default=True),
+    st.Page(page_eda,           title="EDA"),
+    st.Page(page_preprocessing, title="Preprocessing"),
+    st.Page(page_train_eval,    title="Train & Evaluate"),
+    st.Page(page_spatial_map,   title="Spatial Map"),
 ])
+
+with st.sidebar:
+    st.markdown('<div class="sidebar-info" style="font-weight:600; color:var(--primary); font-size:20px">BINUS University:</div>', unsafe_allow_html=True)
+    for name in ["Anandhio Varistama", "Jason Tirta", "Muhammad Rizki Akbar"]:
+        st.markdown(f'<div class="sidebar-info">{name}</div>', unsafe_allow_html=True)
 
 pg.run()

@@ -1,32 +1,30 @@
 project:
   name: "SaniSight AI"
-  version: "1.0"
+  version: "2.0"
   data_path: "data/processed/water_quality.csv"
   geojson_path: "data/raw/regions.geojson"
   model_dir: "models"
 
 features:
-  - Temperatur
-  - Total Dissolve Solid
-  - Kekeruhan
-  - pH
-  - Salinitas
-  - Oksigen terlarut (DO)
-  - Daya Hantar Listrik
+  - kepadatan_penduduk
+  - pct_tanpa_sanitasi
+  - pct_tanpa_air_bersih
+  - volume_sampah_harian
+  - curah_hujan_mm
+  - indeks_kualitas_air
+  - jumlah_faskes_per_1000
 
 target: "risk_class"
 
 risk_labels:
-  0: "Baik"
-  1: "Cemar Ringan"
-  2: "Cemar Sedang"
-  3: "Cemar Berat"
+  0: "Risiko Rendah"
+  1: "Risiko Sedang"
+  2: "Risiko Tinggi"
 
 risk_colors:
   0: "#10b981"
   1: "#f59e0b"
   2: "#ef4444"
-  3: "#7f1d1d"
 
 training:
   test_size: 0.2
