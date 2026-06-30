@@ -1,15 +1,17 @@
 from pathlib import Path
 
-import numpy as np
 import pandas as pd
 from sklearn.preprocessing import StandardScaler
 
 
 class Preprocessor:
+
+    #   init
     def __init__(self, features):
         self.features = features
         self.scaler = StandardScaler()
 
+    # fit transform
     def fit_transform(self, df):
         X = df[self.features].copy()
         X = X.apply(pd.to_numeric, errors="coerce")
@@ -17,6 +19,7 @@ class Preprocessor:
         self.scaler.fit(X)
         return self.scaler.transform(X)
 
+    # transform
     def transform(self, df):
         X = df[self.features].copy()
         X = X.apply(pd.to_numeric, errors="coerce")
@@ -24,6 +27,7 @@ class Preprocessor:
         return self.scaler.transform(X)
 
 
+# load data
 def load_dataset(config, create_if_missing=True):
     data_path = Path(config["paths"]["data"])
     if data_path.exists():
@@ -33,8 +37,6 @@ def load_dataset(config, create_if_missing=True):
         if "longitude" in df.columns:
             df["longitude"] = pd.to_numeric(df["longitude"], errors="coerce")
         return df
-
     raise FileNotFoundError(
-        f"Processed dataset not found at {data_path}. "
-        "Please run 'python src/prepare_data.py' first."
+        f"Processed dataset not found at {data_path}. Please run 'python src/prepare_data.py' first."
     )

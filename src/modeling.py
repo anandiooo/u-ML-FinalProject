@@ -13,37 +13,41 @@ from src.config import load_config
 from src.data import Preprocessor, load_dataset
 
 
+# calc metrics
 def compute_metrics(y_true, y_pred, labels):
     metrics = {
         "macro_f1": f1_score(y_true, y_pred, labels=labels, average="macro"),
-        "macro_precision": precision_score(y_true, y_pred, labels=labels, average="macro"),
+        "macro_precision": precision_score(
+            y_true, y_pred, labels=labels, average="macro"
+        ),
         "macro_recall": recall_score(y_true, y_pred, labels=labels, average="macro"),
         "micro_f1": f1_score(y_true, y_pred, labels=labels, average="micro"),
     }
-
     per_class = {}
     for label in labels:
         per_class[str(label)] = {
-            "precision": precision_score(y_true, y_pred, labels=[label], average="macro"),
+            "precision": precision_score(
+                y_true, y_pred, labels=[label], average="macro"
+            ),
             "recall": recall_score(y_true, y_pred, labels=[label], average="macro"),
             "f1": f1_score(y_true, y_pred, labels=[label], average="macro"),
         }
-
     metrics["per_class"] = per_class
-    metrics["confusion_matrix"] = confusion_matrix(y_true, y_pred, labels=labels).tolist()
+    metrics["confusion_matrix"] = confusion_matrix(
+        y_true, y_pred, labels=labels
+    ).tolist()
     return metrics
 
 
+# train logistic
 def train_logistic(X_train, y_train, config):
     params = config.get("training", {}).get("logistic", {})
-    model = LogisticRegression(
-        max_iter=params.get("max_iter", 300),
-        n_jobs=-1,
-    )
+    model = LogisticRegression(max_iter=params.get("max_iter", 300), n_jobs=-1)
     model.fit(X_train, y_train)
     return model
 
 
+# train xgboost
 def train_xgboost(X_train, y_train, config):
     try:
         from xgboost import XGBClassifier
@@ -51,7 +55,6 @@ def train_xgboost(X_train, y_train, config):
         raise ImportError(
             "xgboost is required. Install with: pip install xgboost"
         ) from exc
-
     params = config.get("training", {}).get("xgboost", {})
     num_class = int(len(np.unique(y_train)))
     model = XGBClassifier(
@@ -70,16 +73,15 @@ def train_xgboost(X_train, y_train, config):
     return model
 
 
+# train dbscan
 def train_dbscan(X_train, config):
     params = config.get("training", {}).get("dbscan", {})
-    model = DBSCAN(
-        eps=params.get("eps", 0.5),
-        min_samples=params.get("min_samples", 5),
-    )
+    model = DBSCAN(eps=params.get("eps", 0.5), min_samples=params.get("min_samples", 5))
     model.fit(X_train)
     return model
 
 
+# format labels
 def _label_name(label_map, class_id):
     if class_id in label_map:
         return label_map[class_id]
@@ -88,21 +90,18 @@ def _label_name(label_map, class_id):
     return str(class_id)
 
 
+# run pipeline
 def run_training_pipeline(config_path=None):
     config = load_config(config_path)
     df = load_dataset(config)
-
     features = config["features"]
     target = config["target"]
     if target not in df.columns:
         raise ValueError(f"Target column '{target}' is missing from dataset")
-
     df[target] = pd.to_numeric(df[target], errors="coerce").fillna(0).astype(int)
-
     preprocessor = Preprocessor(features)
     X = preprocessor.fit_transform(df)
     y = df[target].values
-
     X_train, X_test, y_train, y_test = train_test_split(
         X,
         y,
@@ -110,30 +109,25 @@ def run_training_pipeline(config_path=None):
         random_state=config.get("training", {}).get("random_state", 42),
         stratify=y if len(set(y)) > 1 else None,
     )
-
     logistic_model = train_logistic(X_train, y_train, config)
     xgb_model = train_xgboost(X_train, y_train, config)
     dbscan_model = train_dbscan(X_train, config)
-
     xgb_pred = xgb_model.predict(X_test)
     labels = sorted(set(y))
     metrics = compute_metrics(y_test, xgb_pred, labels)
-
     model_dir = Path(config["paths"]["model_dir"])
     model_dir.mkdir(parents=True, exist_ok=True)
-
     joblib.dump(logistic_model, model_dir / "baseline_logistic.joblib")
     joblib.dump(xgb_model, model_dir / "xgboost_risk.joblib")
     joblib.dump(dbscan_model, model_dir / "dbscan_spatial.joblib")
     joblib.dump(preprocessor.scaler, model_dir / "feature_scaler.joblib")
-
     metrics_path = model_dir / "metrics.json"
     with metrics_path.open("w", encoding="utf-8") as f:
         json.dump(metrics, f, indent=2)
-
     return metrics
 
 
+# read metrics
 def load_metrics(config=None, config_path=None):
     if config is None:
         config = load_config(config_path)
@@ -145,10 +139,10 @@ def load_metrics(config=None, config_path=None):
     return None
 
 
+# load pipelines
 def load_artifacts(config=None, config_path=None):
     if config is None:
         config = load_config(config_path)
-
     model_dir = Path(config["paths"]["model_dir"])
     paths = {
         "logistic": model_dir / "baseline_logistic.joblib",
@@ -156,10 +150,8 @@ def load_artifacts(config=None, config_path=None):
         "dbscan": model_dir / "dbscan_spatial.joblib",
         "scaler": model_dir / "feature_scaler.joblib",
     }
-
-    if not all(path.exists() for path in paths.values()):
+    if not all((path.exists() for path in paths.values())):
         return None
-
     return {
         "logistic": joblib.load(paths["logistic"]),
         "xgboost": joblib.load(paths["xgboost"]),
@@ -168,26 +160,22 @@ def load_artifacts(config=None, config_path=None):
     }
 
 
+# predict risk
 def predict_risk(df_input, config, artifacts):
     features = config["features"]
     X = df_input[features].copy()
     X = X.apply(pd.to_numeric, errors="coerce")
     X = X.fillna(X.median(numeric_only=True))
-
     scaler = artifacts["scaler"]
     X_scaled = scaler.transform(X)
-
     xgb_model = artifacts["xgboost"]
     probs = xgb_model.predict_proba(X_scaled)
     pred_class = probs.argmax(axis=1)
     pred_prob = probs.max(axis=1)
-
     logistic_model = artifacts["logistic"]
     baseline_class = logistic_model.predict(X_scaled)
-
     label_map = config.get("risk_labels", {})
     pred_label = [_label_name(label_map, cls) for cls in pred_class]
-
     return pd.DataFrame(
         {
             "predicted_class": pred_class,

@@ -1,106 +1,42 @@
-# Python bytecode
 __pycache__/
 *.py[cod]
 *$py.class
-
-# C extensions
 *.so
-
-# Distribution / packaging
 build/
 dist/
 *.egg-info/
-
-# Virtual environments
+*.whl
+*.egg
 venv/
 env/
 .venv/
 ENV/
 env.bak/
-
-# Conda
 .conda/
-
-# Pipenv
 Pipfile.lock
-
-# Pytest
-.pytest_cache/
-
-# Coverage
-.coverage
-htmlcov/
-
-# MyPy
-.mypy_cache/
-
-# Pyre
-.pyre/
-
-# VS Code
 .vscode/
-
-# JetBrains
 .idea/
-
-# System files
 .DS_Store
 Thumbs.db
-
-# Jupyter
+ehthumbs.db
+.fseventsd
+.pytest_cache/
+.coverage
+htmlcov/
+.mypy_cache/
+.pyre/
 .ipynb_checkpoints/
 *.ipynb
-
-# Logs
-*.log
-
-# Caches
-.cache/
-
-# Streamlit
-.streamlit/
-
-# Environment variables / secrets
+*.nbconvert.ipynb
+.streamlit/secrets.toml
 .env
 .env.*
 secrets*/
-
-# Data: ignore raw/large datasets but keep processed and small test files
-/data/raw/
-/data/large/
-
-# Models and binary artifacts
-/models/*.joblib
-/models/*.pkl
-/models/*.h5
-/models/*.onnx
-/models/*.pt
-/models/*.ckpt
-
-# Ignore local SQLite DBs, credentials
+*.log
+.cache/
 *.db
 *.sqlite3
-
-# Notebook checkpoints and outputs
-*.nbconvert.ipynb
-
-# macOS file quarantine
-.fseventsd
-
-# Windows image file cache
-ehthumbs.db
-
-# Ignore compiled C/C++ objects
-*.o
-*.obj
-
-# Ignore wheel and egg files
-*.whl
-*.egg
-
-# Temporary files
 *.tmp
 *.temp
-
-# End of file
-*streamlit_asign_app.py
+*.o
+*.obj
